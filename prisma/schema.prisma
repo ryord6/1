@@ -1,0 +1,143 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// =======================================================
+// MODEL ASLI ANDA (TIDAK ADA YANG DIHAPUS)
+// =======================================================
+
+model Song {
+  id           String        @id @default(cuid())
+  title        String
+  videoUrl     String        @unique
+  lyrics       String?       @db.Text
+  tags         Tag[]
+  viewCount    Int           @default(0)
+  likeCount    Int           @default(0)
+  commentCount Int           @default(0)
+  likes        Like[]
+  comments     Comment[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  searchClicks SearchClick[]
+}
+
+model Tag {
+  id       String  @id @default(cuid())
+  name     String
+  slug     String  @unique
+  type     TagType
+  parentId String?
+  parent   Tag?    @relation("Hierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children Tag[]   @relation("Hierarchy")
+  songs    Song[]
+}
+
+enum TagType {
+  GENRE
+  ARTIST
+  LABEL
+  PRODUCTION
+  YEAR
+  CUSTOM
+}
+
+model Like {
+  id     String   @id @default(cuid())
+  songId String
+  userId String // Akan dihubungkan ke User
+  song   Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade) // RELASI BARU
+  createdAt DateTime @default(now())
+
+  @@unique([songId, userId])
+}
+
+model Comment {
+  id     String   @id @default(cuid())
+  text   String   @db.Text
+  songId String
+  userId String // Akan dihubungkan ke User
+  song   Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade) // RELASI BARU
+  createdAt DateTime @default(now())
+}
+
+model SearchQuery {
+  id             String        @id @default(cuid())
+  query          String        @unique
+  searchCount    Int           @default(1)
+  lastSearchedAt DateTime      @updatedAt
+  searchClicks   SearchClick[]
+}
+
+model SearchClick {
+  id            String      @id @default(cuid())
+  clickCount    Int         @default(1)
+  searchQueryId String
+  searchQuery   SearchQuery @relation(fields: [searchQueryId], references: [id], onDelete: Cascade)
+  songId        String
+  song          Song        @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@unique([searchQueryId, songId])
+}
+
+
+// =======================================================
+// MODEL BARU UNTUK NEXTAUTH (DITAMBAHKAN DI BAWAH)
+// =======================================================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  likes         Like[]    // RELASI BARU
+  comments      Comment[] // RELASI BARU
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
